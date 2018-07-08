@@ -1,4 +1,4 @@
-#Cart pole
+# Cart pole
 
 >Install numpy and neat-python before starting
 

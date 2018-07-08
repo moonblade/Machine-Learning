@@ -5,7 +5,7 @@ import os
 import numpy as np
 import pickle 
 
-maxFit = 195
+maxFit = 200
 perNet = 5            
 env = gym.make('CartPole-v0')
 def eval_genome(genome, config, render=False):
@@ -38,8 +38,8 @@ def run(path):
 	p.add_reporter(stat)
 	p.add_reporter(neat.Checkpointer(5))
 
-	pe = neat.ParallelEvaluator(4, eval_genomes)
-	winner = p.run(eval_genomes, 300)
+	pe = neat.ParallelEvaluator(4, eval_genome)
+	winner = p.run(pe.evaluate)
 
 	print('\nBest genome:\n{!s}'.format(winner))
 	winner_net = neat.nn.FeedForwardNetwork.create(winner, config)

@@ -13,7 +13,6 @@ def run(episodes, net):
 		action = np.argmax(net.activate(observation))
 		observation, reward, done, info = env.step(action)
 		if done:
-			print("here")
 			break
 	print(step)
 	env.close()

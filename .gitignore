@@ -3,3 +3,4 @@ other/
 **/*.pyc
 **/*.svg
 **/*.gv
+**/neat-checkpoint*

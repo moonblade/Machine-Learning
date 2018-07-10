@@ -28,6 +28,10 @@ class Snake():
 		if self.direction==0 and direction==1 or self.direction==1 and direction==0 or self.direction==2 and direction==3 or self.direction==3 and direction==2:
 			return
 		self.direction = direction
+		
+	def step(self, direction):
+		self.changeDirection(direction)
+		self.move()
 
 	def getNextTile(self):
 		head = self.snake[-1, :]
@@ -64,21 +68,26 @@ class Board():
 		self.margin = 1
 		self.size = size
 		self.WINDOW_SIZE = [self.size*(self.width+self.margin), self.size*(self.width+self.margin)]
-
+		self.screen = None
 		self.reset()
 
 	def getEmptyCells(self, ignoreSnake=False):
 		return np.argwhere(self.board==0) if ignoreSnake else ([x for x in np.argwhere(self.board==0).tolist() if x not in self.snake.snake.tolist()])
 
+	def getState(self):
+		state[self.snake.snake.tolist()]=2
+		return state
+
 	def render(self):
-		self.screen = pygame.display.set_mode(self.WINDOW_SIZE)
+		if self.screen == None:
+			self.screen = pygame.display.set_mode(self.WINDOW_SIZE)
 		self.screen.fill(BLACK)
 		for row in range(self.size):
 		    for column in range(self.size):
 		        color = WHITE
 		        if self.board[row][column] == 1:
 		            color = GREEN
-		        if self.board[row][column] == 2:
+		        if (self.snake.snake == np.array([row, column])).all(1).any():
 		        	color = RED
 		        pygame.draw.rect(self.screen,
 		                         color,
@@ -95,7 +104,7 @@ class Board():
 
 
 if __name__ == '__main__':
-	# pygame.init()
+	pygame.init()
 	b = Board()
 	print(b.snake.snake)
 	b.snake.move()
@@ -105,4 +114,6 @@ if __name__ == '__main__':
 	b.snake.changeDirection(3)
 	b.snake.move()
 	print(b.snake.snake)
-	# pygame.quit()
+	print(b.getState())
+	# b.render()
+	pygame.quit()

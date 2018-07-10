@@ -12,11 +12,14 @@ class Game():
 		self.nActions = 4
 		self.board = Board()
 
+
 class Snake():
 	# 0 right, 1 left, 2 up, 3 down
 	def __init__(self, board):
 		self.board = board
 		self.reset()
+		self.lengthIncrease = 4
+		self.length = 0
 
 	def reset(self):
 		self.direction = 0
@@ -31,7 +34,7 @@ class Snake():
 		
 	def step(self, direction):
 		self.changeDirection(direction)
-		self.move()
+		return self.move()
 
 	def getNextTile(self):
 		head = self.snake[-1, :]
@@ -53,15 +56,31 @@ class Snake():
 		if self.dead:
 			return
 		tile = self.getNextTile()
+		ate = False
 		if tile is not None:
 			self.snake = np.vstack([self.snake, tile])
 		# eat increases length by one
-		if self.board.board[tile[0]][tile[1]] != 3:
+		if np.array_equal(tile, self.board.dot.dot):
+			ate = True
+			self.length+=self.lengthIncrease
+		if self.length == 0:
 			self.snake = self.snake[1:, :]
+		else:
+			self.length-=1
+		return ate
+
+class Dot():
+	def __init__(self, board):
+		self.board =board
+		self.reset()
+
+	def reset(self):
+		choices  = self.board.getEmptyCells()
+		self.dot = choices[np.random.choice(choices.shape[0], 1, replace=False), :][0]
 
 class Board():
-	# 1 is snake
-	# 2 is snakeHead
+	# 1 is snakeHead
+	# 2 is snake
 	# 3 is food
 	def __init__(self, size=20):
 		self.width = 10
@@ -72,11 +91,23 @@ class Board():
 		self.reset()
 
 	def getEmptyCells(self, ignoreSnake=False):
-		return np.argwhere(self.board==0) if ignoreSnake else ([x for x in np.argwhere(self.board==0).tolist() if x not in self.snake.snake.tolist()])
+		return np.argwhere(self.board==0) if ignoreSnake else np.array([x for x in np.argwhere(self.board==0).tolist() if x not in self.snake.snake.tolist()])
 
 	def getState(self):
-		state[self.snake.snake.tolist()]=2
+		state = self.board
+		snake = np.transpose(self.snake.snake)
+		state[snake[0], snake[1]]=2
+		state[self.snake.snake[-1][0], self.snake.snake[-1][1]]=1
+		state[self.dot.dot[0]. self.dot.dot[1]] = 3
+		state = state.flatten()
 		return state
+
+	def step(self, direction):
+		ate = self.snake.step(direction)
+		if ate:
+			self.dot.reset()
+		self.render()
+		return ate
 
 	def render(self):
 		if self.screen == None:
@@ -85,7 +116,7 @@ class Board():
 		for row in range(self.size):
 		    for column in range(self.size):
 		        color = WHITE
-		        if self.board[row][column] == 1:
+		        if np.array_equal(np.array([row, column]), self.dot.dot):
 		            color = GREEN
 		        if (self.snake.snake == np.array([row, column])).all(1).any():
 		        	color = RED
@@ -95,25 +126,42 @@ class Board():
 		                          (self.margin + self.width) * row + self.margin,
 		                          self.width,
 		                          self.width])
+		pygame.time.delay(50)
 		pygame.display.flip()
 
 	def reset(self):
 		self.board = np.zeros(shape=(self.size, self.size), dtype=np.int32)
-		self.board[0][4] = 3
 		self.snake = Snake(self)
+		self.dot = Dot(self)
 
 
 if __name__ == '__main__':
 	pygame.init()
 	b = Board()
-	print(b.snake.snake)
-	b.snake.move()
-	print(b.snake.snake)
-	b.snake.move()
-	print(b.snake.snake)
-	b.snake.changeDirection(3)
-	b.snake.move()
-	print(b.snake.snake)
-	print(b.getState())
-	# b.render()
+	for x in range(16):
+		b.step(0)
+	b.step(3)
+	for x in range(19):
+		b.step(1)
+	b.step(3)
+	for x in range(19):
+		b.step(0)
+	b.step(3)
+	for x in range(19):
+		b.step(1)
+	b.step(3)
+	for x in range(19):
+		b.step(0)
+	b.step(3)
+	for x in range(19):
+		b.step(1)
+	b.step(3)
+	b.render()
+	for x in range(19):
+		b.step(0)
+	b.step(3)
+	b.render()
+	for x in range(19):
+		b.step(1)
+	b.step(3)
 	pygame.quit()

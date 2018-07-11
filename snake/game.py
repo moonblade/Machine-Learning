@@ -10,10 +10,11 @@ WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 RED = (255, 0, 0)
-render = False
 maxStep = 200
 perNet = 1
-checkPoint = 49
+
+render = False
+checkPoint = 108
 def eval_genome(genome, config):
 	net = neat.nn.FeedForwardNetwork.create(genome, config)
 	fitnesses = []

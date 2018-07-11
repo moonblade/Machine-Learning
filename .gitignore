@@ -4,3 +4,5 @@ other/
 **/*.svg
 **/*.gv
 **/neat-checkpoint*
+**/winner.net
+test

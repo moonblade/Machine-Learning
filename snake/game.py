@@ -1,40 +1,90 @@
 import numpy as np
 import pygame
 import time
+import neat
+import pickle
+import visualize
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
 RED = (255, 0, 0)
-class Game():
-	def __init__(self):
-		# up down left right
-		self.nActions = 4
-		self.board = Board()
+
+maxStep = 10000
+perNet = 5
+def eval_genome(genome, config):
+	net = neat.nn.FeedForwardNetwork.create(genome, config)
+	fitnesses = []
+	for x in range(perNet):
+		observation = env.reset()
+		step = 0
+		totReward = 0
+		while True and step<maxStep:
+			env.render()
+			step+=1
+			action = np.argmax(net.activate(observation))
+			observation, reward, done = env.step(action)
+			totReward += reward
+			if done:
+				break
+		fitnesses.append(totReward+step*0.001)
+	return min(fitnesses)
+
+def eval_genomes(genomes, config):
+	for genome_id, genome in genomes:
+		genome.fitness = eval_genome(genome, config)
+
+def run(path):
+	config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet, neat.DefaultStagnation, path)
+	# p = neat.Population(config)
+	p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-124')
+
+	p.add_reporter(neat.StdOutReporter(True))
+	stat = neat.StatisticsReporter()
+	p.add_reporter(stat)
+	p.add_reporter(neat.Checkpointer(50))
+
+	pe = neat.ParallelEvaluator(20, eval_genome)
+	# winner = p.run(pe.evaluate)
+	winner = p.run(eval_genomes, 300)
+
+	print('\nBest genome:\n{!s}'.format(winner))
+	winner_net = neat.nn.FeedForwardNetwork.create(winner, config)
+	pickle.dump(winner_net, open('winner.net', 'wb'))
+
+	# node_names = {0:'action'}
+	# visualize.draw_net(config, winner, True)
+	# visualize.plot_stats(stat, ylog=False, view=True)
+	# visualize.plot_species(stat, view=True)
 
 
 class Snake():
 	# 0 right, 1 left, 2 up, 3 down
 	def __init__(self, board):
 		self.board = board
+		self.startLength = 2
 		self.reset()
-		self.lengthIncrease = 4
+		self.lengthIncrease = 1
 		self.length = 0
 
 	def reset(self):
 		self.direction = 0
 		choices = self.board.getEmptyCells(True)
-		self.snake=choices[:4]
+		self.snake=choices[:self.startLength]
 		self.dead = False
 
 	def changeDirection(self, direction):
-		if self.direction==0 and direction==1 or self.direction==1 and direction==0 or self.direction==2 and direction==3 or self.direction==3 and direction==2:
+		if self.direction + direction == 1 or self.direction + direction==5 or self.dead:
 			return
 		self.direction = direction
 		
 	def step(self, direction):
-		self.changeDirection(direction)
-		return self.move()
+		if not self.dead:
+			self.changeDirection(direction)
+			return self.move()
+		else:
+			return False, self.dead
 
 	def getNextTile(self):
 		head = self.snake[-1, :]
@@ -47,15 +97,18 @@ class Snake():
 			nextTile = [head[0]-1, head[1]]
 		if self.direction == 3:
 			nextTile = [head[0]+1, head[1]]
-		if nextTile[0]>self.board.size or nextTile[0]<0 or nextTile[1]>self.board.size or nextTile[1]<0:
+		if nextTile[0]>=self.board.size or nextTile[0]<0 or nextTile[1]>=self.board.size or nextTile[1]<0:
+			self.dead = True
+			return None
+		if nextTile in self.snake.tolist():
 			self.dead = True
 			return None
 		return nextTile
 
 	def move(self):
-		if self.dead:
-			return
 		tile = self.getNextTile()
+		if self.dead:
+			return False, self.dead
 		ate = False
 		if tile is not None:
 			self.snake = np.vstack([self.snake, tile])
@@ -67,7 +120,7 @@ class Snake():
 			self.snake = self.snake[1:, :]
 		else:
 			self.length-=1
-		return ate
+		return ate, self.dead
 
 class Dot():
 	def __init__(self, board):
@@ -82,7 +135,7 @@ class Board():
 	# 1 is snakeHead
 	# 2 is snake
 	# 3 is food
-	def __init__(self, size=20):
+	def __init__(self, size=5):
 		self.width = 10
 		self.margin = 1
 		self.size = size
@@ -98,16 +151,19 @@ class Board():
 		snake = np.transpose(self.snake.snake)
 		state[snake[0], snake[1]]=2
 		state[self.snake.snake[-1][0], self.snake.snake[-1][1]]=1
-		state[self.dot.dot[0]. self.dot.dot[1]] = 3
-		state = state.flatten()
+		state[self.dot.dot[0], self.dot.dot[1]] = 3
+		state = state.flatten().tolist() + [self.snake.direction]
 		return state
 
 	def step(self, direction):
-		ate = self.snake.step(direction)
+		ate, dead = self.snake.step(direction)
 		if ate:
 			self.dot.reset()
-		self.render()
-		return ate
+			reward = 1
+		else:
+			reward = 0
+		# self.render()
+		return self.getState(), reward, dead
 
 	def render(self):
 		if self.screen == None:
@@ -120,6 +176,8 @@ class Board():
 		            color = GREEN
 		        if (self.snake.snake == np.array([row, column])).all(1).any():
 		        	color = RED
+		        if (self.snake.snake[-1, :] == np.array([row, column])).all():
+		        	color = BLUE
 		        pygame.draw.rect(self.screen,
 		                         color,
 		                         [(self.margin + self.width) * column + self.margin,
@@ -133,35 +191,11 @@ class Board():
 		self.board = np.zeros(shape=(self.size, self.size), dtype=np.int32)
 		self.snake = Snake(self)
 		self.dot = Dot(self)
+		return self.getState()
 
 
 if __name__ == '__main__':
 	pygame.init()
-	b = Board()
-	for x in range(16):
-		b.step(0)
-	b.step(3)
-	for x in range(19):
-		b.step(1)
-	b.step(3)
-	for x in range(19):
-		b.step(0)
-	b.step(3)
-	for x in range(19):
-		b.step(1)
-	b.step(3)
-	for x in range(19):
-		b.step(0)
-	b.step(3)
-	for x in range(19):
-		b.step(1)
-	b.step(3)
-	b.render()
-	for x in range(19):
-		b.step(0)
-	b.step(3)
-	b.render()
-	for x in range(19):
-		b.step(1)
-	b.step(3)
+	env = Board()
+	run('config')
 	pygame.quit()

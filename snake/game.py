@@ -14,7 +14,9 @@ maxStep = 200
 perNet = 1
 
 render = False
-checkPoint = 108
+runTest = False
+findWinner = False
+checkPoint = 214
 def eval_genome(genome, config):
 	net = neat.nn.FeedForwardNetwork.create(genome, config)
 	fitnesses = []
@@ -54,8 +56,8 @@ def run(path):
 	p.add_reporter(neat.Checkpointer(50))
 
 	pe = neat.ParallelEvaluator(20, eval_genome)
-	if render:
-		winner = p.run(eval_genomes, 300)
+	if render or findWinner:
+		winner = p.run(eval_genomes, 1)
 	else:
 		winner = p.run(pe.evaluate)
 
@@ -63,11 +65,22 @@ def run(path):
 	winner_net = neat.nn.FeedForwardNetwork.create(winner, config)
 	pickle.dump(winner_net, open('winner.net', 'wb'))
 
-	# node_names = {0:'action'}
-	# visualize.draw_net(config, winner, True)
+	node_names = {0:'left', 1:'right', 2:'up', 3:'down'}
+	visualize.draw_net(config, winner, True, node_names=node_names)
 	# visualize.plot_stats(stat, ylog=False, view=True)
 	# visualize.plot_species(stat, view=True)
 
+def test():
+	net = pickle.load(open('winner.net', 'rb'))
+	observation = env.reset()
+	step=0
+	while True:
+		step+=1
+		env.render()
+		action = np.argmax(net.activate(observation))
+		observation, reward, done = env.step(action)
+		if done:
+			break
 
 class Snake():
 	# 0 right, 1 left, 2 up, 3 down
@@ -237,5 +250,8 @@ class Board():
 if __name__ == '__main__':
 	pygame.init()
 	env = Board()
-	run('config')
+	if runTest:
+		test()
+	else:
+		run('config')
 	pygame.quit()

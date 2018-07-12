@@ -4,6 +4,7 @@ import time
 import neat
 import pickle
 import visualize
+import argparse
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -16,7 +17,7 @@ perNet = 1
 render = False
 runTest = False
 findWinner = False
-checkPoint = 214
+checkPoint = False
 def eval_genome(genome, config):
 	net = neat.nn.FeedForwardNetwork.create(genome, config)
 	fitnesses = []
@@ -45,7 +46,7 @@ def eval_genomes(genomes, config):
 
 def run(path):
 	config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet, neat.DefaultStagnation, path)
-	if checkPoint:
+	if checkPoint>0:
 		p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-'+str(checkPoint))
 	else:
 		p = neat.Population(config)
@@ -65,8 +66,8 @@ def run(path):
 	winner_net = neat.nn.FeedForwardNetwork.create(winner, config)
 	pickle.dump(winner_net, open('winner.net', 'wb'))
 
-	node_names = {0:'left', 1:'right', 2:'up', 3:'down'}
-	visualize.draw_net(config, winner, True, node_names=node_names)
+	# node_names = {0:'left', 1:'right', 2:'up', 3:'down'}
+	# visualize.draw_net(config, winner, True, node_names=node_names)
 	# visualize.plot_stats(stat, ylog=False, view=True)
 	# visualize.plot_species(stat, view=True)
 
@@ -91,6 +92,16 @@ class Snake():
 		self.lengthIncrease = 4
 		self.length = 0
 
+	def getDirection(self):
+		# returns vector
+		if self.direction==0:
+			return [0,1]
+		if self.direction==1:
+			return [0,-1]
+		if self.direction==2:
+			return [1,0]
+		if self.direction==3:
+			return [-1,0]
 	def reset(self):
 		self.direction = 0
 		choices = self.board.getEmptyCells(True)
@@ -137,13 +148,13 @@ class Snake():
 		while (now[0]>=0 and now[0]<self.board.size and now[1]>=0 and now[1]<self.board.size):
 			now+=direction
 			if not food and np.array_equal(self.board.dot.dot, now):
-				retval[0]=1/dist
+				retval[0]=1
 				food=True
-			if not tail and (self.snake == now).all():
+			if not tail and now.tolist() in self.snake.tolist():
 				retval[1]=1/dist
 				tail = True
 			dist+=1
-		retval[2]=1/dist
+		retval[2]=1/(dist-1)
 		return retval
 
 	def getState(self):
@@ -184,7 +195,7 @@ class Board():
 	# 1 is snakeHead
 	# 2 is snake
 	# 3 is food
-	def __init__(self, size=10):
+	def __init__(self, size=20):
 		self.width = 10
 		self.margin = 1
 		self.size = size
@@ -223,20 +234,20 @@ class Board():
 			self.screen = pygame.display.set_mode(self.WINDOW_SIZE)
 		self.screen.fill(BLACK)
 		for row in range(self.size):
-		    for column in range(self.size):
-		        color = WHITE
-		        if np.array_equal(np.array([row, column]), self.dot.dot):
-		            color = GREEN
-		        if (self.snake.snake == np.array([row, column])).all(1).any():
-		        	color = RED
-		        if (self.snake.snake[-1, :] == np.array([row, column])).all():
-		        	color = BLUE
-		        pygame.draw.rect(self.screen,
-		                         color,
-		                         [(self.margin + self.width) * column + self.margin,
-		                          (self.margin + self.width) * row + self.margin,
-		                          self.width,
-		                          self.width])
+			for column in range(self.size):
+				color = WHITE
+				if np.array_equal(np.array([row, column]), self.dot.dot):
+					color = GREEN
+				if (self.snake.snake == np.array([row, column])).all(1).any():
+					color = RED
+				if (self.snake.snake[-1, :] == np.array([row, column])).all():
+					color = BLUE
+				pygame.draw.rect(self.screen,
+								 color,
+								 [(self.margin + self.width) * column + self.margin,
+								  (self.margin + self.width) * row + self.margin,
+								  self.width,
+								  self.width])
 		pygame.time.delay(50)
 		pygame.display.flip()
 
@@ -246,12 +257,35 @@ class Board():
 		self.dot = Dot(self)
 		return self.getState()
 
+def parseArgs():
+	global runTest
+	global findWinner
+	global checkPoint
+	global debug
+	parser = argparse.ArgumentParser(description='Process some integers.')
+	parser.add_argument('-t', '--test', action='store_true', default=False, help='test mode')
+	parser.add_argument('-f', '--findWinner', action='store_true', default=False, help='find winner')
+	parser.add_argument('-d', '--debug', action='store_true', default=False, help='debug')
+	parser.add_argument('-c', '--checkpoint', type=int, default=0, help='find winner')
+
+	args = parser.parse_args()
+	runTest = args.test
+	findWinner = args.findWinner
+	checkPoint = args.checkpoint
+	debug = args.debug
+
 
 if __name__ == '__main__':
+	parseArgs()
 	pygame.init()
 	env = Board()
-	if runTest:
-		test()
+	if debug:
+		env.snake.snake=np.array([[18,0], [19,0]])
+		print(env.dot.dot)
+		print(np.array(env.snake.getState()).reshape(8,3))
 	else:
-		run('config')
+		if runTest:
+			test()
+		else:
+			run('config')
 	pygame.quit()

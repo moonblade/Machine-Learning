@@ -1,0 +1,6 @@
+neat-python
+matplotlib
+pygame
+numpy
+gym
+

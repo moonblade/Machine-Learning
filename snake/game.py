@@ -16,8 +16,6 @@ perNet = 1
 
 render = False
 runTest = False
-findWinner = False
-checkPoint = False
 def eval_genome(genome, config):
 	net = neat.nn.FeedForwardNetwork.create(genome, config)
 	fitnesses = []
@@ -46,8 +44,8 @@ def eval_genomes(genomes, config):
 
 def run(path):
 	config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet, neat.DefaultStagnation, path)
-	if checkPoint>0:
-		p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-'+str(checkPoint))
+	if args.checkpoint>0:
+		p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-'+str(args.checkpoint))
 	else:
 		p = neat.Population(config)
 
@@ -57,7 +55,7 @@ def run(path):
 	p.add_reporter(neat.Checkpointer(50))
 
 	pe = neat.ParallelEvaluator(20, eval_genome)
-	if render or findWinner:
+	if render or args.findWinner:
 		winner = p.run(eval_genomes, 1)
 	else:
 		winner = p.run(pe.evaluate)
@@ -72,7 +70,7 @@ def run(path):
 	# visualize.plot_species(stat, view=True)
 
 def test():
-	net = pickle.load(open('winner.net', 'rb'))
+	net = pickle.load(open(args.test, 'rb'))
 	observation = env.reset()
 	step=0
 	while True:
@@ -259,27 +257,24 @@ class Board():
 
 def parseArgs():
 	global runTest
-	global findWinner
-	global checkPoint
 	global debug
+	global args
 	parser = argparse.ArgumentParser(description='Process some integers.')
-	parser.add_argument('-t', '--test', action='store_true', default=False, help='test mode')
+	parser.add_argument('-t', '--test', default=None, help='test mode')
 	parser.add_argument('-f', '--findWinner', action='store_true', default=False, help='find winner')
 	parser.add_argument('-d', '--debug', action='store_true', default=False, help='debug')
 	parser.add_argument('-c', '--checkpoint', type=int, default=0, help='find winner')
 
 	args = parser.parse_args()
-	runTest = args.test
-	findWinner = args.findWinner
-	checkPoint = args.checkpoint
-	debug = args.debug
+	runTest = args.test != None
+	print(args)
 
 
 if __name__ == '__main__':
 	parseArgs()
 	pygame.init()
 	env = Board()
-	if debug:
+	if args.debug:
 		env.snake.snake=np.array([[18,0], [19,0]])
 		print(env.dot.dot)
 		print(np.array(env.snake.getState()).reshape(8,3))

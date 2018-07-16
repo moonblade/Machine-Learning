@@ -12,7 +12,7 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 RED = (255, 0, 0)
 maxStep = 200
-perNet = 1
+perNet = 5
 
 render = False
 runTest = False
@@ -267,7 +267,6 @@ def parseArgs():
 
 	args = parser.parse_args()
 	runTest = args.test != None
-	print(args)
 
 
 if __name__ == '__main__':
